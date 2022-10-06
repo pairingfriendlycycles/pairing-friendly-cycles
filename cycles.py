@@ -14,32 +14,32 @@ Q.<X> = PolynomialRing(QQ, 'X')
 def MNT3():
     t = Q(6*X -1)
     q = Q(12*X^2 - 1)
-    n = q + 1 - t
-    return(t, n, q)
+    p = q + 1 - t
+    return(t, p, q)
 
 def MNT4():
     t = Q(-X)
     q = Q(X^2 + X + 1)
-    n = q + 1 - t
-    return(t, n, q)
+    p = q + 1 - t
+    return(t, p, q)
 
 def MNT6():
     t = Q(2*X + 1)
     q = Q(4*X^2 + 1)
-    n = q + 1 - t
-    return(t, n, q)
+    p = q + 1 - t
+    return(t, p, q)
 
 def Freeman():
     t = Q(10*X^2 + 5*X + 3)
     q = Q(25*X^4 + 25*X^3 + 25*X^2 + 10*X + 3)
-    n = q + 1 - t
-    return(t, n, q)
+    p = q + 1 - t
+    return(t, p, q)
 
 def BN():
     t = Q(6*X^2 + 1)
     q = Q(36*X^4 + 36*X^3 + 24*X^2 + 6*X + 1)
-    n = q + 1 - t
-    return(t, n, q)
+    p = q + 1 - t
+    return(t, p, q)
 
 
 # In[2]:
@@ -55,7 +55,7 @@ def BN():
 
 def candidate_embedding_degrees(Family, K):
     
-    (t, n, q) = Family()
+    (t, p, q) = Family()
     # Create an empty list to store the candidate embedding degrees
     embedding_degrees = []
     # Create an empty list to store the lists of modular conditions for each k
@@ -86,12 +86,12 @@ def candidate_embedding_degrees(Family, K):
 
 # AUXILIARY FUNCTIONS
 
-def is_integer_valued(p):
+def is_integer_valued(g):
     
-    # Check if evaluation is integer in deg(p) + 1 consecutive points
-    for x in range(p.degree()+1):
-        if (not p(x) in ZZ):
-            print(str(p) + " is not integer-valued.")
+    # Check if evaluation is integer in deg(g) + 1 consecutive points
+    for x in range(g.degree()+1):
+        if (not g(x) in ZZ):
+            print(str(g) + " is not integer-valued.")
             return False
     return True
 
@@ -169,20 +169,20 @@ def compute_bounds(a, b):
 # INPUT: a parametrization of a family of pairing-friendly elliptic curves with prime order.
 #        an embedding degree k.
 #        bounds A, B.
-# OUTPUT: a list of integers x in [A, B] such that the curve parameterized by (t(x), n(x), q(x))
+# OUTPUT: a list of integers x in [A, B] such that the curve parameterized by (t(x), p(x), q(x))
 #         forms a cycle with a curve with embedding degree k.
 
 def exhaustive_search(Family, k, A, B, mod_cond):
     
-    (t, n, q) = Family()
+    (t, p, q) = Family()
     curves  = []
     
     for x in range(A, B+1):
         # We skip those values that will never yield q(x) = 1 (mod k), as precomputed above.
         if (not (x % k) in mod_cond): continue
         # Check the embedding degree condition
-        if (n(x)^k - 1 % q(x) == 0):
-            curves.append((x, k, t(x), n(x), q(x)))
+        if (p(x)^k - 1 % q(x) == 0):
+            curves.append((x, k, t(x), p(x), q(x)))
     
     return curves
 
@@ -199,10 +199,10 @@ def exhaustive_search(Family, k, A, B, mod_cond):
 def search_for_cycles(Family, K):
     
     # Instantiate the family
-    (t, n, q) = Family()
+    (t, p, q) = Family()
     print("Starting family: " + str(Family.__name__))
     print("t(X) = " + str(t))
-    print("n(X) = " + str(n))
+    print("p(X) = " + str(p))
     print("q(X) = " + str(q))
     
     # Find the candidate embedding degrees up to K that are compatible with this family
@@ -216,18 +216,18 @@ def search_for_cycles(Family, K):
     for k in embedding_degrees:
         
         print("k = " + str(k))
-        (A, B) = compute_bounds(n^k, q)
+        (A, B) = compute_bounds(p^k, q)
         print("A = " + str(A) + ", B = " + str(B))
         
         curves = exhaustive_search(Family, k, A, B, modular_conditions[k])
         print("Curves with embedding degree " + str(k) + " that form a cycle with a curve from the " + str(Family.__name__) + " family: " + str(len(curves)))
         
         for curve in curves:
-            (x, k, t, n, q) = curve
+            (x, k, t, p, q) = curve
             print("x = " + str(x))
             print("embedding degree = " + str(k))
             print("t(x) = " + str(t))
-            print("n(x) = " + str(n))
+            print("p(x) = " + str(p))
             print("q(x) = " + str(q))
             print("-----------------------")
 
