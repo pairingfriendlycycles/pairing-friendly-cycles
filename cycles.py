@@ -143,7 +143,7 @@ def compute_bounds(a, b):
     w_left = c * r + ((1 - sigma_left) / 2) * b
     w_right = c * r + ((1 - sigma_right) / 2) * b
     
-    # Compute A, B
+    # Compute N_left, N_right
     N_left = find_relevant_root(w_left, b, -1)
     N_right = find_relevant_root(w_right, b, 1)
     
@@ -195,7 +195,7 @@ def search_for_cycles(Family, K):
         print(("For k = " + str(k) + ", necessarily x = " +str(modular_conditions[k])) + " (mod " + str(k) + ")")
     print("=======================")
     
-    # For each potential embedding degree, find the bounds A, B and perform exhaustive search within [A, B].
+    # For each potential embedding degree, find the bounds N_left, N_right and perform exhaustive search within [N_left, N_right].
     for k in embedding_degrees:
         
         print("k = " + str(k))
