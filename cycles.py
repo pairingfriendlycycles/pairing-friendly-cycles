@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 
 # SETUP
 
@@ -42,9 +40,6 @@ def BN():
     return(t, p, q)
 
 
-# In[2]:
-
-
 # CANDIDATE EMBEDDING DEGREES
 
 # INPUT: a parametrization of a family of pairing-friendly elliptic curves with prime order.
@@ -81,9 +76,6 @@ def candidate_embedding_degrees(Family, K):
     return embedding_degrees, modular_conditions
 
 
-# In[3]:
-
-
 # AUXILIARY FUNCTIONS
 
 def is_integer_valued(g):
@@ -118,13 +110,10 @@ def find_relevant_root(w, b, side):
         return floor(max(C_1, C_2))
 
 
-# In[4]:
-
-
-# COMPUTATION OF THE BOUNDS A, B
+# COMPUTATION OF THE BOUNDS N_left, N_right
 
 # INPUT: two integer-valued polynomials a, b in Q[X].
-# OUTPUT: bounds A, B in Z, as described in Lemma ?.
+# OUTPUT: bounds N_left, N_right in Z, as described in Lemma 4.4.
 
 def compute_bounds(a, b):
     
@@ -145,39 +134,36 @@ def compute_bounds(a, b):
     c = lcm(denominators)
     
     # Compute signs
-    sigma_B = sign(r.leading_coefficient())
-    sigma_A = sigma_B * (-1)^(r.degree())
+    sigma_right = sign(r.leading_coefficient())
+    sigma_left = sigma_right * (-1)^(r.degree())
     
-    # We compute the polynomials w_A, w_B such that 
-    # 0 <= w_A < b(x) for all x < A, and
-    # 0 <= w_B < b(x) for all x > B.
-    w_A = c * r + ((1 - sigma_A) / 2) * b
-    w_B = c * r + ((1 - sigma_B) / 2) * b
+    # We compute the polynomials w_left, w_right such that 
+    # 0 <= w_left < b(x) for all x < N_left, and
+    # 0 <= w_right < b(x) for all x > N_right.
+    w_left = c * r + ((1 - sigma_left) / 2) * b
+    w_right = c * r + ((1 - sigma_right) / 2) * b
     
     # Compute A, B
-    A = find_relevant_root(w_A, b, -1)
-    B = find_relevant_root(w_B, b, 1)
+    N_left = find_relevant_root(w_left, b, -1)
+    N_right = find_relevant_root(w_right, b, 1)
     
-    return (A, B)
-
-
-# In[5]:
+    return (N_left, N_right)
 
 
 # EXHAUSTIVE SEARCH
 
 # INPUT: a parametrization of a family of pairing-friendly elliptic curves with prime order.
 #        an embedding degree k.
-#        bounds A, B.
-# OUTPUT: a list of integers x in [A, B] such that the curve parameterized by (t(x), p(x), q(x))
+#        bounds N_left, N_right.
+# OUTPUT: a list of integers x in [N_left, N_right] such that the curve parameterized by (t(x), p(x), q(x))
 #         forms a cycle with a curve with embedding degree k.
 
-def exhaustive_search(Family, k, A, B, mod_cond):
+def exhaustive_search(Family, k, N_left, N_right, mod_cond):
     
     (t, p, q) = Family()
     curves  = []
     
-    for x in range(A, B+1):
+    for x in range(N_left, N_right+1):
         # We skip those values that will never yield q(x) = 1 (mod k), as precomputed above.
         if (not (x % k) in mod_cond): continue
         # Check the embedding degree condition
@@ -185,9 +171,6 @@ def exhaustive_search(Family, k, A, B, mod_cond):
             curves.append((x, k, t(x), p(x), q(x)))
     
     return curves
-
-
-# In[6]:
 
 
 # MAIN FUNCTION
@@ -216,10 +199,10 @@ def search_for_cycles(Family, K):
     for k in embedding_degrees:
         
         print("k = " + str(k))
-        (A, B) = compute_bounds(p^k, q)
-        print("A = " + str(A) + ", B = " + str(B))
+        (N_left, N_right) = compute_bounds(p^k, q)
+        print("N_left = " + str(N_left) + ", N_right = " + str(N_right))
         
-        curves = exhaustive_search(Family, k, A, B, modular_conditions[k])
+        curves = exhaustive_search(Family, k, N_left, N_right, modular_conditions[k])
         print("Curves with embedding degree " + str(k) + " that form a cycle with a curve from the " + str(Family.__name__) + " family: " + str(len(curves)))
         
         for curve in curves:
@@ -230,10 +213,5 @@ def search_for_cycles(Family, K):
             print("p(x) = " + str(p))
             print("q(x) = " + str(q))
             print("-----------------------")
-
-
-# In[ ]:
-
-
 
 
