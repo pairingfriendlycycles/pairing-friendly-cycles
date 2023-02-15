@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-
 # SETUP
 
 # Define the polynomial rings over the reals and rationals
@@ -48,18 +44,18 @@ def BN():
 #         family *might* form a cycle with a curve with embedding degree k, along with conditions
 #         on x mod k for each of these k.
 
-def candidate_embedding_degrees(Family, K):
+def candidate_embedding_degrees(Family, K_low, K_high):
     
     (t, p, q) = Family()
     # Create an empty list to store the candidate embedding degrees
     embedding_degrees = []
     # Create an empty list to store the lists of modular conditions for each k
-    modular_conditions = [None] * (K+1)
+    modular_conditions = [None] * (K_high + 1)
     
     # Embedding degree k implies that q(x) = 1 (mod k). 
     # We check this condition in 0, ..., k-1 and build a list of candidates
     # such that any x has to be congruent to one of them modulo k.
-    for k in range(3, K+1):
+    for k in range(K_low, K_high + 1):
         
         candidate = False
         
@@ -108,6 +104,17 @@ def find_relevant_root(w, b, side):
         return ceil(min(C_1, C_2))
     else:
         return floor(max(C_1, C_2))
+    
+def check_embedding_degree(px, qx, k):
+    # Checks divisibility condition
+    if ((px^k - 1) % qx != 0): return False
+    # Checks that divisibility conditions does not happen for smaller exponents
+    div = divisors(k)
+    div.remove(k)
+    for j in div:
+        if ((px^j - 1) % qx == 0):
+            return False
+    return True
 
 
 # COMPUTATION OF THE BOUNDS N_left, N_right
@@ -166,8 +173,8 @@ def exhaustive_search(Family, k, N_left, N_right, mod_cond):
     for x in range(N_left, N_right+1):
         # We skip those values that will never yield q(x) = 1 (mod k), as precomputed above.
         if (not (x % k) in mod_cond): continue
-        # Check the embedding degree condition
-        if (p(x)^k - 1 % q(x) == 0):
+        # Check the embedding degree condition 
+        if (check_embedding_degree(p(x), q(x), k)):
             curves.append((x, k, t(x), p(x), q(x)))
     
     return curves
@@ -179,39 +186,57 @@ def exhaustive_search(Family, k, N_left, N_right, mod_cond):
 #        a bound K on the embedding degree to look for
 # OUTPUT: all the cycles involving a curve from the family and a prime-order curve with embedding degree k < K.
 
-def search_for_cycles(Family, K):
+import time
+
+def search_for_cycles(Family, K_low, K_high):
+
+    file_name = 'output_' + Family.__name__ + '.txt'
+    f = open(file_name, 'w')
+    start = time.time()
     
     # Instantiate the family
     (t, p, q) = Family()
-    print("Starting family: " + str(Family.__name__))
-    print("t(X) = " + str(t))
-    print("p(X) = " + str(p))
-    print("q(X) = " + str(q))
+    print("Starting family: " + str(Family.__name__), file=f)
+    print("t(X) = " + str(t), file=f)
+    print("p(X) = " + str(p), file=f)
+    print("q(X) = " + str(q), file=f)
     
     # Find the candidate embedding degrees up to K that are compatible with this family
-    (embedding_degrees, modular_conditions) = candidate_embedding_degrees(Family, K)
-    print("Candidate embedding degrees: " + str(embedding_degrees))
+    (embedding_degrees, modular_conditions) = candidate_embedding_degrees(Family, K_low, K_high)
+    print("Candidate embedding degrees: " + str(embedding_degrees), file=f)
     for k in embedding_degrees:
-        print(("For k = " + str(k) + ", necessarily x = " +str(modular_conditions[k])) + " (mod " + str(k) + ")")
-    print("=======================")
+        print(("For k = " + str(k) + ", necessarily x = " +str(modular_conditions[k])) + " (mod " + str(k) + ")", file=f)
+    print("========================", file=f)
     
     # For each potential embedding degree, find the bounds N_left, N_right and perform exhaustive search within [N_left, N_right].
     for k in embedding_degrees:
         
-        print("k = " + str(k))
+        f.close()
+        f = open(file_name, 'a')
+        start_k = time.time()
+        
+        print("k = " + str(k), file=f)
         (N_left, N_right) = compute_bounds(p^k, q)
-        print("N_left = " + str(N_left) + ", N_right = " + str(N_right))
+        print("N_left = " + str(N_left) + ", N_right = " + str(N_right), file=f)
         
         curves = exhaustive_search(Family, k, N_left, N_right, modular_conditions[k])
-        print("Curves with embedding degree " + str(k) + " that form a cycle with a curve from the " + str(Family.__name__) + " family: " + str(len(curves)))
+        print("Curves with embedding degree " + str(k) + " that form a cycle with a curve from the " + str(Family.__name__) + " family: " + str(len(curves)), file=f)
         
         for curve in curves:
-            (x, k, t, p, q) = curve
-            print("x = " + str(x))
-            print("embedding degree = " + str(k))
-            print("t(x) = " + str(t))
-            print("p(x) = " + str(p))
-            print("q(x) = " + str(q))
-            print("-----------------------")
+            (x, k, tx, px, qx) = curve
+            print("x = " + str(x), file=f)
+            print("embedding degree = " + str(k), file=f)
+            print("t(x) = " + str(tx), file=f)
+            print("p(x) = " + str(px), file=f)
+            print("q(x) = " + str(qx), file=f)
+            print("------------", file=f)
+        
+        end_k = time.time()
+        print('Computations for embedding degree ' + str(k) + ' took', round(end_k - start_k, 2), 'seconds.', file=f)
+        print("------------------------", file=f)
 
+    end = time.time()
+    print("========================", file=f)
+    print('Overall computation took', round(end - start, 2), 'time', file=f)
 
+    f.close()
