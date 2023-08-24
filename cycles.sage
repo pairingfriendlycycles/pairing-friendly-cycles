@@ -1,3 +1,7 @@
+import sys
+from multiprocessing import cpu_count, Pool
+from traceback import print_exc
+
 # SETUP
 
 # Define the polynomial rings over the reals and rationals
@@ -165,12 +169,12 @@ def compute_bounds(a, b):
 # OUTPUT: a list of integers x in [N_left, N_right] such that the curve parameterized by (t(x), p(x), q(x))
 #         forms a cycle with a curve with embedding degree k.
 
-def exhaustive_search(Family, k, N_left, N_right, mod_cond):
+def exhaustive_search(Family, k, N_left, N_right, mod_cond, worker_id=0, num_workers=1):
     
     (t, p, q) = Family()
     curves  = []
     
-    for x in range(N_left, N_right+1):
+    for x in range(N_left+worker_id, N_right+1, num_workers):
         # We skip those values that will never yield q(x) = 1 (mod k), as precomputed above.
         if (not (x % k) in mod_cond): continue
         # Check the embedding degree condition 
@@ -180,6 +184,36 @@ def exhaustive_search(Family, k, N_left, N_right, mod_cond):
     return curves
 
 
+# CURVE SEARCH SUBROUTINE
+
+# INPUT: a parametrization of a family of pairing-friendly elliptic curves with prime order.
+#        an embedding degree k.
+#        bounds N_left, N_right.
+# OUTPUT: all the cycles involving a curve from the family and a prime-order curve with embedding degree k < K.
+
+def get_curves(Family, k, N_left, N_right, mod_cond, num_workers):
+    # For small enough ranges, a sequential search is faster.
+    if num_workers == 1 or N_right < 5_000_000:
+        return exhaustive_search(Family, k, N_left, N_right, mod_cond)
+    else:
+        pool = Pool(processes=num_workers)
+        curves_list = []
+
+        def collect_curves(curves):
+            for curve in curves:
+                curves_list.append(curve)
+
+        try:
+            for worker_id in range(num_workers):
+                pool.apply_async(
+                    worker, (exhaustive_search, Family, k, N_left, N_right, mod_cond, worker_id, num_workers), callback=collect_curves)
+
+            pool.close()
+            pool.join()
+        except (KeyboardInterrupt, SystemExit):
+            sys.exit("Program aborted.")
+        return curves_list
+
 # MAIN FUNCTION
 
 # INPUT: a parameterization of a family of pairing-friendly ellipitc curves with prime order.
@@ -188,7 +222,7 @@ def exhaustive_search(Family, k, N_left, N_right, mod_cond):
 
 import time
 
-def search_for_cycles(Family, K_low, K_high):
+def search_for_cycles(Family, K_low, K_high, num_workers=1):
 
     file_name = 'output_' + Family.__name__ + '.txt'
     f = open(file_name, 'w')
@@ -219,7 +253,8 @@ def search_for_cycles(Family, K_low, K_high):
         (N_left, N_right) = compute_bounds(p^k, q)
         print("N_left = " + str(N_left) + ", N_right = " + str(N_right), file=f)
         
-        curves = exhaustive_search(Family, k, N_left, N_right, modular_conditions[k])
+        curves = get_curves(Family, k, N_left, N_right, modular_conditions[k], num_workers)
+
         print("Curves with embedding degree " + str(k) + " that form a cycle with a curve from the " + str(Family.__name__) + " family: " + str(len(curves)), file=f)
         
         for curve in curves:
@@ -240,3 +275,56 @@ def search_for_cycles(Family, K_low, K_high):
     print('Overall computation took', round(end - start, 2), 'time', file=f)
 
     f.close()
+
+########################################################################
+
+def worker(strategy, *args):
+    res = []
+    try:
+        res = real_worker(strategy, *args)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    except:
+        print_exc()
+    finally:
+        return res
+
+
+def real_worker(strategy, *args):
+    return strategy(*args)
+
+if __name__ ==  '__main__':
+    """Main function"""
+    args = sys.argv[1:]
+    help = "--help" in args
+    args = [arg for arg in args if not arg.startswith("--")]
+
+    if help:
+        print("""
+Cmd: sage cycles.sage <Family> <K_low> <K_high>
+
+Args:
+    <Family>            A family of pairing-friendly curve to look for cycle on.
+    <K_low>             The minimal embedding degree to search for cycle candidates.
+    <K_high>            The maximal embedding degree to search for cycle candidates.
+""")
+        sys.exit()
+
+    assert len(args) == 3, "There should be 3 arguments provided."  
+    if args[0] == "MNT3":
+        Family = MNT3
+    elif args[0] == "MNT4":
+        Family = MNT4
+    elif args[0] == "MNT6":
+        Family = MNT6
+    elif args[0] == "Freeman":
+        Family = Freeman
+    elif args[0] == "BN":
+        Family = BN
+    else:
+        sys.exit("Invalid family of curves provided.")
+
+    K_low = int(args[1])
+    K_high = int(args[2])
+    
+    search_for_cycles(Family, K_low, K_high, cpu_count())
